@@ -3,7 +3,7 @@
  * Authors:  Brett McKinney and Nick Davis
  * Email:  brett.mckinney@gmail.com, nick@nickdavis.name
  */
-public class ExecMain {
+public class snprank {
 	public static void main(String[] args) {
 		
 		if(args.length != 3) {
@@ -11,7 +11,7 @@ public class ExecMain {
 			System.exit(1);
 		}
 		
-		ReadMatrix full_data = new ReadMatrix(args[0]);		
+		SNPrank full_data = new SNPrank(args[0]);		
 		full_data.snprank(full_data.getHeader(), full_data.getData(), args[1], args[2]);
 	}
 }

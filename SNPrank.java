@@ -11,11 +11,11 @@ import java.util.ArrayList;
  * Authors:  Brett McKinney and Nick Davis
  * Email:  brett.mckinney@gmail.com, nick@nickdavis.name
  */
-public class ReadMatrix {
+public class SNPrank {
 	private String [] header;
 	private double [][] data;
 	
-	public ReadMatrix(String file) {
+	public SNPrank(String file) {
 		header = null;
 		data = null;
 		readFile(file);
