@@ -67,10 +67,14 @@ public class SNPrank {
 	
 	}
 	
-	
 	public void snprank(String[] name, double[][] G, String gamma, String outFile) {
+		// G diagonal is information gain
+		double[][] Gdiag = getDiagonal(G);		
+		
+		double Gtrace = sumCol(Gdiag)[0];
+		
 		// vector of column sums of G
-		double [] colsum = sumCol(G);
+		double[] colsum = sumCol(G);
 		
 		//find the indices of c array that element is not zero
 		int[] colsum_nzidx = findNonZeroIndex(colsum);
@@ -82,17 +86,17 @@ public class SNPrank {
 		// non-zero elements of colsum/d_j have (1 - gamma) in the numerator of 
 		// the second term (Eq. 5 from SNPrank paper)
 		double[][] T_nz = getMatrix(1, G.length, 1.0);
-		for(int i=0; i <colsum_nzidx.length; i++) {
+		for(int i = 0; i < colsum_nzidx.length; i++) {
 			T_nz[0][colsum_nzidx[i]] = 1 - Double.parseDouble(gamma);
 		}
 		
-		double[][] T = addMatrix(matrixMulti(matrixTimesDouble(G, 
-				Double.parseDouble(gamma)), D),	matrixMulti(e, T_nz));
-		
-		double[][] r = new double[e.length][e[0].length];
-		for (int j = 0; j < e.length; j++) {
-			r[j][0] = e[j][0]/G.length; 
-		}
+		// Compute T, Markov chain transition matrix
+		double[][] T = addMatrix(
+				matrixMulti(matrixTimesDouble(G, Double.parseDouble(gamma)), D),
+				matrixTimesDouble(matrixMulti(Gdiag, T_nz), (1 / Gtrace)));
+
+		// initial arbitrary vector 
+		double[][] r = getMatrix(G.length, 1, 1.0/G.length);
 		
 		double threshold = 1.0E-4;
 		double lambda = 0.0;
@@ -145,6 +149,15 @@ public class SNPrank {
 		}		
 	}
 		
+	private double[][] getDiagonal(double[][] g) {
+		double[][] diag = new double[g.length][1];
+		for (int i = 0; i < g.length; i++){
+			diag[i][0] = g[i][i];
+		}
+		
+		return diag;
+	}
+
 	private double[][] addMatrix(double[][] m1, double[][] m2){
 		
 		double[][] resultM = new double[m1.length][m1[0].length];
@@ -201,7 +214,7 @@ public class SNPrank {
 	 * @param k : a int array
 	 * @return a double array filled with reciprocal of the int array 
 	 */
-	private double [] reciprocal(double [] c, int[] k) {
+	private double[] reciprocal(double [] c, int[] k) {
 		double[] result = new double[k.length];
 		for (int i = 0; i < result.length; i++) {
 			result[i] = 1.0/c[k[i]];
@@ -242,11 +255,13 @@ public class SNPrank {
 	}
 	
 	private double[] sumCol(double[][] data) {
-		double [] result = new double[data.length];
+		double[] result = new double[data[0].length];
+		// columns
 		for (int i = 0; i < result.length; i++) {
 			result[i] = 0.0;
-			for (int j = 0; j < data[i].length; j++) {
-				result[i] += (data[i][j]);
+			// rows
+			for (int j = 0; j < data.length; j++) {
+				result[i] += (data[j][i]);
 			}
 		}
 		return result;
