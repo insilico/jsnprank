@@ -1,4 +1,6 @@
 *.class
 *.gain
 *.out
+/.classpath
+/.project
 /jblas-1.1.1.jar
