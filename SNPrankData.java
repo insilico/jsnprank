@@ -84,7 +84,6 @@ public class SNPrankData {
 		
 		// sparse matrix where the nonzero indices are filled with 1/colsum[i]
 		double[][] D = sparse(colsum_nzidx, colsum_nzidx, reciprocal(colsum, colsum_nzidx), G.length, G.length);
-		double[][] e = getMatrix(G.length, 1, 1.0);
 		
 		// non-zero elements of colsum/d_j have (1 - gamma) in the numerator of 
 		// the second term (Eq. 5 from SNPrank paper)
@@ -135,8 +134,8 @@ public class SNPrankData {
 				}
 			}
 		}
-		
 
+		// location of indices, used for sorting 
 		Integer[] indices = new Integer[r.length];
 		for (int i = 0; i < indices.length; i++){
 			indices[i] = i;
@@ -144,14 +143,14 @@ public class SNPrankData {
 
 		final double[][] r_data = r;
 		
-		// sort r, preserving sorted order of orginal indices		
+		// sort r, preserving sorted order of original indices		
 		Arrays.sort(indices, new Comparator<Integer>() {
 		    public int compare(final Integer o1, final Integer o2) {
 		        return Double.compare(r_data[o1][0], r_data[o2][0]);
 		    }
 		});
 		
-		// reverse sorted list of indices
+		// reverse sorted list of indices (sort descending)
 		for (int i = 0; i < indices.length / 2; i++){
 			int current = indices[i];
 			indices[i] = indices[indices.length - 1 - i];
