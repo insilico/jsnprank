@@ -11,7 +11,7 @@ public class snprank {
 			System.exit(1);
 		}
 		
-		SNPrank full_data = new SNPrank(args[0]);		
+		SNPrankData full_data = new SNPrankData(args[0]);		
 		full_data.snprank(full_data.getHeader(), full_data.getData(), args[1], args[2]);
 	}
 }
