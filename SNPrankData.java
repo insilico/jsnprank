@@ -5,6 +5,9 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 
 /*
  * Matrix methods and implementation of the SNPrank algorithm.
@@ -133,13 +136,37 @@ public class SNPrankData {
 			}
 		}
 		
-		// otuput to file, truncating values to 6 decimal places
+
+		Integer[] indices = new Integer[r.length];
+		for (int i = 0; i < indices.length; i++){
+			indices[i] = i;
+		}
+
+		final double[][] r_data = r;
+		
+		// sort r, preserving sorted order of orginal indices		
+		Arrays.sort(indices, new Comparator<Integer>() {
+		    public int compare(final Integer o1, final Integer o2) {
+		        return Double.compare(r_data[o1][0], r_data[o2][0]);
+		    }
+		});
+		
+		// reverse sorted list of indices
+		for (int i = 0; i < indices.length / 2; i++){
+			int current = indices[i];
+			indices[i] = indices[indices.length - 1 - i];
+			indices[indices.length - 1 - i] = current;
+		}
+
+		// output to file, truncating values to 6 decimal places
         try {
 			FileWriter fw = new FileWriter(outFile);
 			BufferedWriter writer = new BufferedWriter(fw);
 			writer.write("SNP\tSNPrank\tIG\n");
+			int index = 0;
 			for(int i=0; i<r.length; i++) {
-				writer.write(name[i] + "\t" + String.format("%.6f", r[i][0]) + "\t" + String.format("%.6f", colsum[i]) + "\n");
+				index = indices[i];
+				writer.write(name[index] + "\t" + String.format("%.6f", r[index][0]) + "\t" + String.format("%.6f", colsum[index]) + "\n");
 			}
 			
 			writer.close();
