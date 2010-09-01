@@ -11,11 +11,11 @@ import java.util.ArrayList;
  * Authors:  Brett McKinney and Nick Davis
  * Email:  brett.mckinney@gmail.com, nick@nickdavis.name
  */
-public class SNPrank {
+public class SNPrankData {
 	private String [] header;
 	private double [][] data;
 	
-	public SNPrank(String file) {
+	public SNPrankData(String file) {
 		header = null;
 		data = null;
 		readFile(file);
