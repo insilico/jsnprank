@@ -160,7 +160,7 @@ public class SNPrankData {
 				index = indices[i];
 				writer.write(name[index] + "\t" + 
 						String.format("%8.6f", r.get(index)) + "\t" +
-						String.format("%8.6f", colsum.get(index)) + "\n");
+						String.format("%8.6f", G.get(index, index)) + "\n");
 			}
 			
 			writer.close();
