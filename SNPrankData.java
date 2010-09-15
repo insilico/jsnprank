@@ -4,10 +4,10 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
+import org.jblas.DoubleMatrix;
+import org.jblas.MatrixFunctions;
 
 /*
  * Matrix methods and implementation of the SNPrank algorithm.
@@ -16,7 +16,7 @@ import java.util.Comparator;
  */
 public class SNPrankData {
 	private String [] header;
-	private double [][] data;
+	private DoubleMatrix data;
 	
 	public SNPrankData(String file) {
 		header = null;
@@ -40,7 +40,7 @@ public class SNPrankData {
 			//set the header from first line of the input file
 			this.setHeader(strRow.split(delimiter));
 			
-			data = new double[this.getHeader().length][this.getHeader().length];
+			data = new DoubleMatrix(this.getHeader().length, this.getHeader().length);
 
 			// set the data part from other lines of the input file
 			int index = 0;
@@ -51,8 +51,8 @@ public class SNPrankData {
 					delimiter = "\\s";
 				}
 				String [] strArray = strRow.trim().split(delimiter);
-				for(int i=0; i<data[index].length; i++) {
-					data[index][i] = Double.parseDouble(strArray[i].trim());
+				for(int i = 0; i < data.rows; i++) {
+					data.put(index, i, Double.parseDouble(strArray[i].trim()));
 				}
 				index++;
 			}
@@ -70,69 +70,62 @@ public class SNPrankData {
 	
 	}
 	
-	public void snprank(String[] name, double[][] G, String gamma, String outFile) {
+	public void snprank(String[] name, DoubleMatrix G, String gamma, String outFile) {
 		// G diagonal is information gain
-		double[][] Gdiag = getDiagonal(G);		
+		DoubleMatrix Gdiag = G.diag();		
 		
-		double Gtrace = sumCol(Gdiag)[0];
+		double Gtrace = Gdiag.sum();
 		
 		// vector of column sums of G
-		double[] colsum = sumCol(G);
+		DoubleMatrix colsum = G.columnSums();
 		
-		//find the indices of c array that element is not zero
-		int[] colsum_nzidx = findNonZeroIndex(colsum);
+		// find the indices of non-zero c array elements
+		int[] colsum_nzidx = colsum.findIndices();
 		
-		// sparse matrix where the nonzero indices are filled with 1/colsum[i]
-		double[][] D = sparse(colsum_nzidx, colsum_nzidx, reciprocal(colsum, colsum_nzidx), G.length, G.length);
+		// sparse matrix where the nonzero indices are filled with 1/colsum
+		DoubleMatrix D = DoubleMatrix.zeros(G.rows, G.columns);
+		DoubleMatrix fillD = DoubleMatrix.ones(1, colsum_nzidx.length)
+								.div(colsum.get(colsum_nzidx));
+		for (int i = 0; i < fillD.length; i++){
+			D.put(colsum_nzidx[i], colsum_nzidx[i], fillD.get(i));
+		}		
 		
 		// non-zero elements of colsum/d_j have (1 - gamma) in the numerator of 
 		// the second term (Eq. 5 from SNPrank paper)
-		double[][] T_nz = getMatrix(1, G.length, 1.0);
-		for(int i = 0; i < colsum_nzidx.length; i++) {
-			T_nz[0][colsum_nzidx[i]] = 1 - Double.parseDouble(gamma);
-		}
+		DoubleMatrix T_nz = DoubleMatrix.ones(1, G.columns);
+		T_nz.put(colsum_nzidx, 1 - Double.parseDouble(gamma));
 		
 		// Compute T, Markov chain transition matrix
-		double[][] T = addMatrix(
-				matrixMulti(matrixTimesDouble(G, Double.parseDouble(gamma)), D),
-				matrixTimesDouble(matrixMulti(Gdiag, T_nz), (1 / Gtrace)));
+		DoubleMatrix T = G.mmul(D).mul(Double.parseDouble(gamma))
+						.add(Gdiag.mmul(T_nz).mul(1.0 / Gtrace));
 
 		// initial arbitrary vector 
-		double[][] r = getMatrix(G.length, 1, 1.0/G.length);
+		DoubleMatrix r = new DoubleMatrix(G.rows, 1);
+		r.fill(1.0 / G.rows);
 		
 		double threshold = 1.0E-4;
 		double lambda = 0.0;
 		boolean converged = false;
-		double[][] r_old = r;
+		DoubleMatrix r_old = r;
 
 		// if the absolute value of the difference between old and current r 
 		// vector is < threshold, we have converged
 		while(!converged) {
-			lambda = 0.0; 
 			r_old = r;
-			r = matrixMulti(T, r);
+			r = T.mmul(r);
 			
 			// sum of r elements
-			for (int j = 0; j < r.length; j++) {
-				lambda += r[j][0];
-			}
+			lambda = r.sum();
 			
 			// normalize eigenvector r so sum(r) == 1
-			for (int j = 0; j < r.length; j++) {
-				r[j][0] = r[j][0]/lambda;
+			r = r.div(lambda);
+			
+			// check convergence, ensure all elements of r - r_old < threshold
+			if (MatrixFunctions.abs(r.sub(r_old)).lt(threshold).min() == 1.0){
+				converged = true;
 			}
 			
-			// check convergence
-			for (int j = 0; j < r.length; j++){
-				if (Math.abs(r[j][0] - r_old[j][0]) < threshold){
-					converged = true;
-				}
-				
-				else {
-					converged = false;
-					break;
-				}
-			}
+			else converged = false;
 		}
 
 		// location of indices, used for sorting 
@@ -141,7 +134,7 @@ public class SNPrankData {
 			indices[i] = i;
 		}
 
-		final double[][] r_data = r;
+		final double[][] r_data = r.toArray2();
 		
 		// sort r, preserving sorted order of original indices		
 		Arrays.sort(indices, new Comparator<Integer>() {
@@ -165,7 +158,9 @@ public class SNPrankData {
 			int index = 0;
 			for(int i=0; i<r.length; i++) {
 				index = indices[i];
-				writer.write(name[index] + "\t" + String.format("%.6f", r[index][0]) + "\t" + String.format("%.6f", colsum[index]) + "\n");
+				writer.write(name[index] + "\t" + 
+						String.format("%8.6f", r.get(index)) + "\t" +
+						String.format("%8.6f", G.get(index, index)) + "\n");
 			}
 			
 			writer.close();
@@ -173,124 +168,6 @@ public class SNPrankData {
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}		
-	}
-		
-	private double[][] getDiagonal(double[][] g) {
-		double[][] diag = new double[g.length][1];
-		for (int i = 0; i < g.length; i++){
-			diag[i][0] = g[i][i];
-		}
-		
-		return diag;
-	}
-
-	private double[][] addMatrix(double[][] m1, double[][] m2){
-		
-		double[][] resultM = new double[m1.length][m1[0].length];
-		for (int i = 0 ; i < resultM.length; i++ ){
-			for(int j = 0; j < resultM[0].length; j++){
-				   resultM[i][j] = m1[i][j] + m2[i][j];
-			}
-		}
-			
-		return resultM;
-	}
-	
-	private double[][] matrixTimesDouble(double[][] a, double d){
-		double[][] result = new double[a.length][a[0].length];
-		for (int i = 0 ; i < result.length; i++ ){
-			for(int j = 0; j < result[0].length; j++){
-				   result[i][j] = a[i][j]*d;
-			}
-		}
-		
-		return result;
-	}
-	
-	private double[][] matrixMulti(double[][] a, double [][] b){
-		double[][] result = new double[a.length][b[0].length];
-		for (int i = 0; i < a.length; i++) { //i is left Matrix's row
-            for (int j = 0; j < b[0].length; j++) {//j is right Matrix's column
-                for (int k = 0; k < a[0].length; k++) {//k is left Matrix's column
-                    result[i][j] +=  a[i][k]* b[k][j];
-                }//end k for loop :m1.column
-            }//end j for loop :m2.column
-        }//end i for loop :m1.row
-		return result;
-	}
-	
-	/**
-	 * 
-	 * @param m : matrix rows
-	 * @param n : matrix columns
-	 * @return a m*n matrix filed with v
-	 */
-	private double[][] getMatrix(int m, int n, double v) {
-		double[][] result = new double[m][n];
-		for (int i = 0; i < m; i++) {
-			for (int j = 0; j < n; j++) {
-				result[i][j] = v;
-			}
-		}
-		return result;
-	}
-	
-	/**
-	 * 
-	 * @param k : a int array
-	 * @return a double array filled with reciprocal of the int array 
-	 */
-	private double[] reciprocal(double [] c, int[] k) {
-		double[] result = new double[k.length];
-		for (int i = 0; i < result.length; i++) {
-			result[i] = 1.0/c[k[i]];
-		}
-		
-		return result;
-	}
-	
-	private double[][] sparse(int[] v1, int[] v2, double[] s, int n, int m){
-		double[][] result = new double[n][m];
-		//result[v1[i],v2[i]] = s[i], others is 0
-		int index = 0;
-		for (int i = 0; i < result.length; i++) {
-			for (int j = 0; j < result[0].length; j++) {
-				if(i==v1[index] && j==v2[index]) {
-					result[i][j] = s[index++];
-				}else {
-					result[i][j] = 0;
-				}
-			}
-		}
-		
-		return result;
-	}
-	
-	private int[] findNonZeroIndex(double[] array) {
-		ArrayList<Integer> result = new ArrayList<Integer>(array.length);
-		for (int i = 0; i < array.length; i++) {
-			if(array[i] != 0.0) {
-				result.add(i);
-			}
-		}
-		int[] tmp = new int[result.size()];
-		for (int i = 0; i < tmp.length; i++) {
-			tmp[i] = Integer.parseInt(result.get(i).toString());
-		}
-		return tmp;
-	}
-	
-	private double[] sumCol(double[][] data) {
-		double[] result = new double[data[0].length];
-		// columns
-		for (int i = 0; i < result.length; i++) {
-			result[i] = 0.0;
-			// rows
-			for (int j = 0; j < data.length; j++) {
-				result[i] += (data[j][i]);
-			}
-		}
-		return result;
 	}
 	
 	/**
@@ -308,13 +185,13 @@ public class SNPrankData {
 	/**
 	 * @return the data
 	 */
-	public double[][] getData() {
+	public DoubleMatrix getData() {
 		return data;
 	}
 	/**
 	 * @param data the data to set
 	 */
-	public void setData(double[][] data) {
+	public void setData(DoubleMatrix data) {
 		this.data = data;
 	}
 }
