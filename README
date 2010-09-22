@@ -1,1 +1,0 @@
-usage:  java -jar rank.jar matrix.txt 0.85 output_filename
