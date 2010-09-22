@@ -1,7 +1,13 @@
 /*
- * Parse command-line options and run the SNPrank algorithm.
- * Authors:  Brett McKinney and Nick Davis
- * Email:  brett.mckinney@gmail.com, nick@nickdavis.name
+ * SNPrank - single nucleotide polymorphism (SNP) ranking algorithm
+ *
+ * Uses a GAIN file, together with a damping factor gamma, 
+ * (default is .85), to compute SNPrank scores.
+ * Prints a series of rows containing the SNP name, SNPrank score,
+ * information gain, sorted in descending order by SNPrank.
+ * 
+ * Authors:  Brett McKinney <brett.mckinney@gmail.com>
+             Nick Davis <nick@nickdavis.name>
  */
 public class snprank {
 	public static void main(String[] args) {

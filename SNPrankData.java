@@ -10,9 +10,12 @@ import org.jblas.DoubleMatrix;
 import org.jblas.MatrixFunctions;
 
 /*
+ * SNPrank - single nucleotide polymorphism (SNP) ranking algorithm
+ * 
  * Matrix methods and implementation of the SNPrank algorithm.
- * Authors:  Brett McKinney and Nick Davis
- * Email:  brett.mckinney@gmail.com, nick@nickdavis.name
+ *
+ * Authors:  Brett McKinney <brett.mckinney@gmail.com>
+             Nick Davis <nick@nickdavis.name>
  */
 public class SNPrankData {
 	private String [] header;
